@@ -51,3 +51,7 @@ that wouldn't support key recovery.
 `toit-mfrc522` and built against the `Reader`/`Target` interface. Crypto1
 key recovery (darkside/nested/mfkey-style attacks against your own cards)
 is a planned v1 feature, not yet implemented.
+
+---
+
+Parts of this repository were developed with the help of [Claude Code](https://claude.com/claude-code).
