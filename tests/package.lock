@@ -1,0 +1,9 @@
+prefixes:
+  mifare-classic: toit-mifare-classic
+packages:
+  toit-mifare-classic:
+    path: ..
+    prefixes:
+      nfc: toit-nfc
+  toit-nfc:
+    path: ../../toit-nfc

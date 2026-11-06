@@ -1,0 +1,5 @@
+name: mifare-classic
+description: MIFARE Classic cards (sectors, access bits, Crypto1 authentication) on top of the toit-nfc Reader/Target interface.
+dependencies:
+  nfc:
+    path: ../toit-nfc
