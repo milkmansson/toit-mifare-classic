@@ -22,18 +22,20 @@ import mifare-classic show ClassicCard
 import nfc.card-type show CardType
 import pn53x show Pn53x
 
-// Ian's I2C test harness (2026-11-07); keep in sync with
-// toit-pn53x/examples/main.toit if the wiring changes.
+// I2C test harness (2026-11-07); keep in sync with
+// toit-pn53x/examples/main.toit if the wiring changes. IRQ/RESET are
+// both optional -- see that file's comment -- and unset here since
+// only VCC/GND/SDA/SCL are wired so far.
 SDA ::= 19
 SCL ::= 20
-IRQ ::= 7
-RESET ::= 6
+IRQ-PIN/int? ::= null
+RESET-PIN/int? ::= null
 
 main:
   sda := gpio.Pin SDA
   scl := gpio.Pin SCL
-  irq := gpio.Pin IRQ
-  reset := gpio.Pin RESET
+  irq := IRQ-PIN and (gpio.Pin IRQ-PIN)
+  reset := RESET-PIN and (gpio.Pin RESET-PIN)
 
   bus := i2c.Bus --sda=sda --scl=scl --frequency=100_000
   device := bus.device Pn53x.I2C-ADDRESS
@@ -77,7 +79,7 @@ main:
   pn53x.off
   device.close
   bus.close
-  irq.close
-  reset.close
+  if irq: irq.close
+  if reset: reset.close
   scl.close
   sda.close
