@@ -1,5 +1,6 @@
 prefixes:
   mifare-classic: toit-mifare-classic
+  nfc: toit-nfc
 packages:
   toit-mifare-classic:
     path: ..

@@ -3,12 +3,14 @@
 // be found in the TESTS_LICENSE file.
 
 import expect show *
+import nfc.frame show Frame
 import mifare-classic.crypto1
 
 main:
   test_crypto1_cipher
   test_crypto1_prng
   test_mifare_classic_authentication
+  test_mifare_classic_authentication_second_trace
   test_parity_encryption
 
 test_crypto1_cipher:
@@ -238,6 +240,70 @@ test_mifare_classic_authentication:
       (encrypted_command.to_non_raw --no-check_parity).bytes
   decrypted_command = writer.decrypt encrypted_command
   expect_equals #[0x30, 0x37, 0x3e, 0xed] decrypted_command
+
+test_mifare_classic_authentication_second_trace:
+  // A second, independently captured real-world trace, from
+  // toit-mfrc522's .reference/notes.txt ("Another trace with key
+  // afffbfffcfff"). Unlike the trace above (from a published paper's
+  // own worked example), this one was captured off real hardware, so
+  // it's a meaningfully different kind of check on the same math.
+  //
+  // The trace only has the reader's *encrypted* nonce/challenge
+  // (n_r XOR ks1, a_r XOR ks2); the plaintext n_r itself was never
+  // recorded. So instead of starting from a known n_r like the test
+  // above does, this derives it by decrypting the trace's ciphertext
+  // with our own keystream (exactly what the real tag would've done),
+  // then checks two things against the trace's actual bytes: that the
+  // derived a_r is the n_t successor-function value a reader should
+  // send, and that re-encrypting reproduces the trace's ciphertext
+  // exactly, byte for byte.
+  uuid := #[0x3e, 0xb4, 0xe2, 0x49]
+  key := #[0xaf, 0xff, 0xbf, 0xff, 0xcf, 0xff]
+  reader := crypto1.MifareCryptoReader --uid=uuid
+  writer := crypto1.MifareCryptoWriter --uid=uuid
+
+  reader.start_authentication --key=key
+  encrypted_auth_request := reader.encrypt #[0x60, 0x02]
+  // Not a nested authentication, so the request isn't encrypted.
+  expect_equals #[0x60, 0x02] (encrypted_auth_request.to_non_raw --no-check_parity).bytes
+
+  writer.start_authentication --key=key
+  nonce_tag := #[0x24, 0x5c, 0xdb, 0xee]
+  encrypted_nonce_response := writer.encrypt nonce_tag
+  expect_equals nonce_tag (encrypted_nonce_response.to_non_raw --no-check_parity).bytes
+  decrypted_nonce_response := reader.decrypt encrypted_nonce_response
+  expect_equals nonce_tag decrypted_nonce_response
+
+  // Recover the reader's actual n_r/a_r by decrypting the trace's
+  // ciphertext with the writer's (tag's) synchronized keystream, the
+  // same way the real tag would have.
+  encrypted_challenge_response_from_trace := #[0x58, 0x47, 0x67, 0xbf, 0x68, 0x6f, 0x4f, 0xb9]
+  challenge_response := writer.decrypt (Frame encrypted_challenge_response_from_trace).to_raw
+  nonce_reader := challenge_response[.. 4]
+
+  // a_r must be exactly what the reader-side code itself would compute
+  // for this n_t/n_r pair.
+  expected_challenge_response := reader.generate_challenge_response
+      --nonce_tag=decrypted_nonce_response
+      --nonce_reader=nonce_reader
+  expect_equals expected_challenge_response challenge_response
+
+  // Re-encrypting must reproduce the trace's ciphertext exactly.
+  encrypted_challenge_response := reader.encrypt challenge_response
+  expect_equals
+      encrypted_challenge_response_from_trace
+      (encrypted_challenge_response.to_non_raw --no-check_parity).bytes
+
+  final_message := writer.compute_final_message challenge_response
+  encrypted_final_message := writer.encrypt final_message
+  expect_equals
+      #[0x60, 0x21, 0xb9, 0x3d]
+      (encrypted_final_message.to_non_raw --no-check_parity).bytes
+  decrypted_final_message := reader.decrypt encrypted_final_message
+  expect_equals final_message decrypted_final_message
+
+  succeeded := reader.compare_tag_response decrypted_final_message
+  expect succeeded
 
 test_parity_encryption:
   // Compare to the trace of [0], Appendix C.

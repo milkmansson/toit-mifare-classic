@@ -1,3 +1,5 @@
 dependencies:
   mifare-classic:
     path: ..
+  nfc:
+    path: ../../toit-nfc
