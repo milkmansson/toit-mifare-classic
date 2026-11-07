@@ -1,0 +1,15 @@
+prefixes:
+  mifare-classic: toit-mifare-classic
+  nfc: toit-nfc
+  pn53x: toit-pn53x
+packages:
+  toit-mifare-classic:
+    path: ..
+    prefixes:
+      nfc: toit-nfc
+  toit-nfc:
+    path: ../../toit-nfc
+  toit-pn53x:
+    path: ../../toit-pn53x
+    prefixes:
+      nfc: toit-nfc
